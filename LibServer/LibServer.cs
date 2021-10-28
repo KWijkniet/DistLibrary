@@ -51,7 +51,31 @@ namespace LibServer
         public void start()
         {
             //todo: implement the body. Add extra fields and methods to the class if it is needed
+            IPEndPoint ipEndpoint = new IPEndPoint(ipAddress, settings.ServerPortNumber);
+            Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
 
+            socket.Bind(ipEndpoint);
+            socket.Listen(3);
+            Console.WriteLine("\n Waiting for clients...");
+            Socket newSocket = socket.Accept();
+
+            while (true)
+            {
+                int b = newSocket.Receive(buffer);
+                data = Encoding.ASCII.GetString(buffer, 0, b);
+
+                if (data == "Closed")
+                {
+                    newSocket.Close();
+                    Console.WriteLine("Closing the socket...");
+                    break;
+                }
+
+                Console.WriteLine("" + data);
+                data = null;
+                newSocket.Send(msg);
+            }
+            socket.Close();
         }
     }
 
