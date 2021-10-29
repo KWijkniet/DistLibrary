@@ -50,7 +50,14 @@ namespace LibServer
 
         public void start()
         {
+
             //todo: implement the body. Add extra fields and methods to the class if it is needed
+            Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+            IPEndPoint iPEndPoint = new IPEndPoint(ipAddress, settings.ServerPortNumber);
+            socket.Bind(iPEndPoint);
+            socket.Listen(settings.ServerListeningQueue);
+            Console.WriteLine("waiting lah");
+            Socket newsocket = socket.Accept();
 
         }
     }
