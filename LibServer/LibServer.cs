@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Net;
 using System.Net.Sockets;
 using System.IO;
+using System.Text;
 using LibData;
 
 
@@ -34,7 +35,7 @@ namespace LibServer
         public SequentialServer()
         {
             //todo: implement the body. Add extra fields and methods to the class if it is needed
-
+            
             // read JSON directly from a file
             try
             {
@@ -50,15 +51,26 @@ namespace LibServer
 
         public void start()
         {
+            byte[] incomingmsgCLIENT = new byte[1000];
+            string data =null;
+            while (true)
+            {
+                //todo: implement the body. Add extra fields and methods to the class if it is needed
+                Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+                IPEndPoint iPEndPoint = new IPEndPoint(ipAddress, settings.ServerPortNumber);
+                socket.Bind(iPEndPoint);
+                socket.Listen(settings.ServerListeningQueue);
+                Console.WriteLine("waiting lah");
+                Socket newsocket = socket.Accept();
 
-            //todo: implement the body. Add extra fields and methods to the class if it is needed
-            Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-            IPEndPoint iPEndPoint = new IPEndPoint(ipAddress, settings.ServerPortNumber);
-            socket.Bind(iPEndPoint);
-            socket.Listen(settings.ServerListeningQueue);
-            Console.WriteLine("waiting lah");
-            Socket newsocket = socket.Accept();
-
+                while (true)
+                {
+                    int b = newsocket.Receive(incomingmsgCLIENT);
+                    data = Encoding.ASCII.GetString(incomingmsgCLIENT, 0, b);
+                    Console.WriteLine(data);
+                }
+                socket.Close();
+            }
         }
     }
 

@@ -91,19 +91,23 @@ namespace LibClient
                     clientSocket.Connect(serverEndPoint);
                     break;
                 }
-                catch { }
+                catch (Exception exception)
+                {
+                    Console.Out.WriteLine("trying to laad this shit");
+                }
             }
 
             //Has a connection
-            byte[] msg = JsonSerializer.SerializeToUtf8Bytes(result);
+            byte[] msg = JsonSerializer.SerializeToUtf8Bytes(bookName);
             clientSocket.Send(msg);
-
+            Console.WriteLine("");
             //make client connection
             //get book by id
             //return result as output class
 
             // todo: implement the body to communicate with the server and requests the book. Return the result as an Output object.
             // Adding extra methods to the class is permitted. The signature of this method must not change.
+            clientSocket.Close();
 
             return result;
         }
