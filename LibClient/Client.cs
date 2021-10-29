@@ -81,9 +81,11 @@ namespace LibClient
         /// <returns>The result of the request</returns>
         public Output start()
         {
+            //voorbereiding voor TCP connectie
             serverEndPoint = new IPEndPoint(ipAddress, settings.ServerPortNumber);
             clientSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
 
+            // het proberen om TCP connectie te maken
             while (true)
             {
                 try
@@ -97,7 +99,7 @@ namespace LibClient
                 }
             }
 
-            //Has a connection
+            //het verzenden van de boek info 
             byte[] msg = JsonSerializer.SerializeToUtf8Bytes(bookName);
             clientSocket.Send(msg);
             Console.WriteLine("MESSAGE VERZONDEN");
