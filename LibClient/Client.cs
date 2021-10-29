@@ -100,11 +100,28 @@ namespace LibClient
             //Has a connection
             byte[] msg = JsonSerializer.SerializeToUtf8Bytes(bookName);
             clientSocket.Send(msg);
-            Console.WriteLine("");
+            Console.WriteLine("MESSAGE VERZONDEN");
             //make client connection
             //get book by id
             //return result as output class
 
+
+            //waiting voor info na het verzenden van request 
+            byte[] Incomingmsg = new byte[1000];
+            string data = null;
+            while (true)
+            {
+                
+                Console.WriteLine("...");
+                Console.WriteLine("...");
+                Console.WriteLine("...");
+                Console.WriteLine("...");
+                Console.WriteLine("...");
+                Console.WriteLine("waiting for info");
+                int b = clientSocket.Receive(Incomingmsg);
+                data = Encoding.ASCII.GetString(Incomingmsg, 0, b);
+                Console.WriteLine(data);
+            }
             // todo: implement the body to communicate with the server and requests the book. Return the result as an Output object.
             // Adding extra methods to the class is permitted. The signature of this method must not change.
             clientSocket.Close();
