@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Net;
 using System.Net.Sockets;
 using System.IO;
+using System.Text;
 using LibData;
 
 
@@ -34,7 +35,7 @@ namespace LibServer
         public SequentialServer()
         {
             //todo: implement the body. Add extra fields and methods to the class if it is needed
-
+            
             // read JSON directly from a file
             try
             {
@@ -50,32 +51,40 @@ namespace LibServer
 
         public void start()
         {
-            //todo: implement the body. Add extra fields and methods to the class if it is needed
-            IPEndPoint ipEndpoint = new IPEndPoint(ipAddress, settings.ServerPortNumber);
-            Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-
-            socket.Bind(ipEndpoint);
-            socket.Listen(3);
-            Console.WriteLine("\n Waiting for clients...");
-            Socket newSocket = socket.Accept();
-
+            byte[] incomingmsgCLIENT = new byte[1000];
+            string data =null;
             while (true)
             {
-                int b = newSocket.Receive(buffer);
-                data = Encoding.ASCII.GetString(buffer, 0, b);
+                //todo: implement the body. Add extra fields and methods to the class if it is needed
+                
+                //voorbereiding connectie
+                Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+                IPEndPoint iPEndPoint = new IPEndPoint(ipAddress, settings.ServerPortNumber);
+                
+                //het wachten op een client voor een connectie
+                socket.Bind(iPEndPoint);
+                socket.Listen(settings.ServerListeningQueue);
+                Console.WriteLine("waiting lah");
 
-                if (data == "Closed")
+                //CONNECTED 
+                Socket newsocket = socket.Accept();
+
+
+                // het opnemen van informatie dat de server binnne krijgt en uitprinten
+                while (true)
                 {
-                    newSocket.Close();
-                    Console.WriteLine("Closing the socket...");
-                    break;
+                    int b = newsocket.Receive(incomingmsgCLIENT);
+                    data = Encoding.ASCII.GetString(incomingmsgCLIENT, 0, b);
+                    Console.WriteLine(data);
+                    if (!(data == null))
+                    {
+                        break;
+                    }
                 }
+                //hier komt connectie naar bookserver
 
-                Console.WriteLine("" + data);
-                data = null;
-                newSocket.Send(msg);
+                socket.Close();
             }
-            socket.Close();
         }
     }
 
