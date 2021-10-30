@@ -51,40 +51,80 @@ namespace LibServer
 
         public void start()
         {
-            byte[] incomingmsgCLIENT = new byte[1000];
-            string data =null;
-            while (true)
+            //todo: implement the body. Add extra fields and methods to the class if it is needed
+
+            //voorbereiding connectie
+            Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+            IPEndPoint iPEndPoint = new IPEndPoint(ipAddress, settings.ServerPortNumber);
+
+            try
             {
-                //todo: implement the body. Add extra fields and methods to the class if it is needed
-                
-                //voorbereiding connectie
-                Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-                IPEndPoint iPEndPoint = new IPEndPoint(ipAddress, settings.ServerPortNumber);
-                
                 //het wachten op een client voor een connectie
                 socket.Bind(iPEndPoint);
                 socket.Listen(settings.ServerListeningQueue);
-                Console.WriteLine("waiting lah");
-
-                //CONNECTED 
-                Socket newsocket = socket.Accept();
-
+                Console.WriteLine("\n Connection started. Awaiting clients...");
 
                 // het opnemen van informatie dat de server binnne krijgt en uitprinten
                 while (true)
                 {
-                    int b = newsocket.Receive(incomingmsgCLIENT);
-                    data = Encoding.ASCII.GetString(incomingmsgCLIENT, 0, b);
-                    Console.WriteLine(data);
-                    if (!(data == null))
+                    //Connect
+                    Socket newsocket = socket.Accept();
+
+                    //Handle incoming client request
+                    string clientRequest = ClientRequestHandler(newsocket);
+                    Console.WriteLine("Client connected with message: " + clientRequest);
+
+                    //hier komt connectie naar bookserver
+                    string bookHelper = BookHelperHandler(newsocket, clientRequest);
+                    //hier komt connectie naar userserver
+                    string userHelper = UserHelperHandler(newsocket, clientRequest);
+
+                    //Handle response to client
+                    string response = "Request received";
+                    ClientResponseHandler(newsocket, response);
+                    Console.WriteLine("returned response: " + response + "\n");
+
+                    //Check if connection should be terminated
+                    if (clientRequest.Length <= 0 || clientRequest == "TERMINATE")
                     {
                         break;
                     }
                 }
-                //hier komt connectie naar bookserver
 
+                Console.WriteLine("\n Closing connection...");
                 socket.Close();
             }
+            catch (Exception e)
+            {
+                Console.WriteLine("\nAn error occured: " + e.Message + "\n" + e.StackTrace, ConsoleColor.Red);
+            }
+        }
+
+        //Handle incoming request from the client
+        private string ClientRequestHandler(Socket socket)
+        {
+            byte[] incomingmsgCLIENT = new byte[1000];
+            int b = socket.Receive(incomingmsgCLIENT);
+            return Encoding.ASCII.GetString(incomingmsgCLIENT, 0, b);
+        }
+
+        //Handle outgoing response to the client
+        private void ClientResponseHandler(Socket socket, string message)
+        {
+            byte[] msg = Encoding.ASCII.GetBytes(message);
+            socket.Send(msg);
+        }
+
+        //Handle outgoing request to the bookHelper
+        private string BookHelperHandler(Socket socket, string bookName)
+        {
+            return "";
+        }
+
+        //Handle outgoing request to the userHelper
+        private string UserHelperHandler(Socket socket, string bookName)
+        {
+            return "";
         }
     }
 
