@@ -75,12 +75,34 @@ namespace LibServer
                     Console.WriteLine("Client connected with message: " + clientRequest);
 
                     //hier komt connectie naar bookserver
-                    string bookHelper = BookHelperHandler(newsocket, clientRequest);
+                    BookData bookHelper = BookHelperHandler(clientRequest);
+                    if(bookHelper != null)
+                    {
+                        Console.WriteLine("Response from book helper: " + bookHelper.Title);
+                    }
+                    else
+                    {
+                        Console.WriteLine("No book by that title has been found: " + clientRequest);
+                    }
+
                     //hier komt connectie naar userserver
-                    string userHelper = UserHelperHandler(newsocket, clientRequest);
+                    UserData userHelper = UserHelperHandler(bookHelper != null ? bookHelper.Author : "");
+                    if (userHelper != null)
+                    {
+                        Console.WriteLine("Response from user helper: " + userHelper.Name);
+                    }
+                    else
+                    {
+                        Console.WriteLine("No author by that name has been found: " + (bookHelper != null ? bookHelper.Author : ""));
+                    }
 
                     //Handle response to client
-                    string response = "Request received";
+                    string response = "";
+                    if(bookHelper != null && userHelper != null)
+                    {
+                        response = JsonSerializer.Serialize(bookHelper) + ", " + JsonSerializer.Serialize(userHelper);
+                    }
+
                     ClientResponseHandler(newsocket, response);
                     Console.WriteLine("returned response: " + response + "\n");
 
@@ -113,18 +135,51 @@ namespace LibServer
         {
             byte[] msg = Encoding.ASCII.GetBytes(message);
             socket.Send(msg);
+            Console.WriteLine("Send message");
         }
 
         //Handle outgoing request to the bookHelper
-        private string BookHelperHandler(Socket socket, string bookName)
+        private BookData BookHelperHandler(string bookName)
         {
-            return "";
+            //voorbereiding voor TCP connectie
+            Socket bookHelperSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+            IPEndPoint iPEndPoint = new IPEndPoint(IPAddress.Parse(settings.BookHelperIPAddress), settings.BookHelperPortNumber);
+            // het proberen om TCP connectie te maken
+            bookHelperSocket.Connect(iPEndPoint);
+
+            //send request
+            byte[] msg = Encoding.ASCII.GetBytes(bookName.Length > 0 ? bookName : "TERMINATE");
+            bookHelperSocket.Send(msg);
+
+            //receive response
+            byte[] incomingmsg = new byte[1000];
+            int response = bookHelperSocket.Receive(incomingmsg);
+            string responseString = Encoding.ASCII.GetString(incomingmsg, 0, response);
+            bookHelperSocket.Close();
+
+            return JsonSerializer.Deserialize<BookData>(responseString);
         }
 
         //Handle outgoing request to the userHelper
-        private string UserHelperHandler(Socket socket, string bookName)
+        private UserData UserHelperHandler(string author)
         {
-            return "";
+            //voorbereiding voor TCP connectie
+            Socket userHelperSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+            IPEndPoint iPEndPoint = new IPEndPoint(IPAddress.Parse(settings.UserHelperIPAddress), settings.UserHelperPortNumber);
+            // het proberen om TCP connectie te maken
+            userHelperSocket.Connect(iPEndPoint);
+
+            //send request
+            byte[] msg = Encoding.ASCII.GetBytes(author.Length > 0 ? author : "TERMINATE");
+            userHelperSocket.Send(msg);
+
+            //receive response
+            byte[] incomingmsg = new byte[1000];
+            int response = userHelperSocket.Receive(incomingmsg);
+            string responseString = Encoding.ASCII.GetString(incomingmsg, 0, response);
+            userHelperSocket.Close();
+
+            return JsonSerializer.Deserialize<UserData>(responseString);
         }
     }
 
