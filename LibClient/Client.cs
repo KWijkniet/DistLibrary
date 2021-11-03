@@ -81,53 +81,30 @@ namespace LibClient
         /// <returns>The result of the request</returns>
         public Output start()
         {
+            // todo: implement the body to communicate with the server and requests the book. Return the result as an Output object.
+            // Adding extra methods to the class is permitted. The signature of this method must not change.
+
+            Console.WriteLine("Starting client: " + client_id + "\nBook: " + bookName);
+
             //voorbereiding voor TCP connectie
             serverEndPoint = new IPEndPoint(ipAddress, settings.ServerPortNumber);
             clientSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-
             // het proberen om TCP connectie te maken
-            while (true)
-            {
-                try
-                {
-                    clientSocket.Connect(serverEndPoint);
-                    break;
-                }
-                catch (Exception exception)
-                {
-                    Console.Out.WriteLine("trying to laad this shit");
-                }
-            }
+            clientSocket.Connect(serverEndPoint);
 
-            //het verzenden van de boek info 
-            byte[] msg = JsonSerializer.SerializeToUtf8Bytes(bookName);
+            //send request
+            byte[] msg = Encoding.ASCII.GetBytes(bookName.Length > 0 ? bookName : "TERMINATE");
             clientSocket.Send(msg);
-            Console.WriteLine("MESSAGE VERZONDEN");
-            //make client connection
-            //get book by id
-            //return result as output class
+            Console.WriteLine("Request send...");
 
-
-            //waiting voor info na het verzenden van request 
-            byte[] Incomingmsg = new byte[1000];
-            string data = null;
-            while (true)
-            {
-                
-                Console.WriteLine("...");
-                Console.WriteLine("...");
-                Console.WriteLine("...");
-                Console.WriteLine("...");
-                Console.WriteLine("...");
-                Console.WriteLine("waiting for info");
-                int b = clientSocket.Receive(Incomingmsg);
-                data = Encoding.ASCII.GetString(Incomingmsg, 0, b);
-                Console.WriteLine(data);
-            }
-            // todo: implement the body to communicate with the server and requests the book. Return the result as an Output object.
-            // Adding extra methods to the class is permitted. The signature of this method must not change.
+            //receive response
+            byte[] incomingmsg = new byte[1000];
+            int response = clientSocket.Receive(incomingmsg);
+            Console.WriteLine("\nResponse: " + Encoding.ASCII.GetString(incomingmsg, 0, response));
             clientSocket.Close();
 
+            //End of client
+            Console.WriteLine("Quiting client: " + client_id);
             return result;
         }
     }
