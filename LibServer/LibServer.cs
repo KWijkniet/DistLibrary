@@ -69,47 +69,38 @@ namespace LibServer
                 {
                     //Connect
                     Socket newsocket = socket.Accept();
+                    Console.WriteLine("Connected");
 
-                    //Handle incoming client request
-                    string clientRequest = ClientRequestHandler(newsocket);
-                    Console.WriteLine("Client connected with message: " + clientRequest);
+                    //Receive client_id from client
+                    Message message = ReceiveMessage(newsocket);
+                    if (message.Type == MessageType.Hello)
+                    {
+                        //Request next message from client
+                        SendMessage(newsocket, MessageType.Welcome, "");
 
-                    //hier komt connectie naar bookserver
-                    BookData bookHelper = BookHelperHandler(clientRequest);
-                    if(bookHelper != null)
-                    {
-                        Console.WriteLine("Response from book helper: " + bookHelper.Title);
-                    }
-                    else
-                    {
-                        Console.WriteLine("No book by that title has been found: " + clientRequest);
-                    }
+                        //Receive next message from client
+                        message = ReceiveMessage(newsocket);
+                        if(message.Type == MessageType.BookInquiry)
+                        {
+                            //Connect to book helper
+                            Socket bookHelperSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+                            IPEndPoint iPEndPointHelper = new IPEndPoint(IPAddress.Parse(settings.BookHelperIPAddress), settings.BookHelperPortNumber);
+                            bookHelperSocket.Connect(iPEndPointHelper);
 
-                    //hier komt connectie naar userserver
-                    UserData userHelper = UserHelperHandler(bookHelper != null ? bookHelper.Author : "");
-                    if (userHelper != null)
-                    {
-                        Console.WriteLine("Response from user helper: " + userHelper.Name);
-                    }
-                    else
-                    {
-                        Console.WriteLine("No author by that name has been found: " + (bookHelper != null ? bookHelper.Author : ""));
-                    }
+                            //Request book from helper
+                            SendMessage(bookHelperSocket, MessageType.BookInquiry, message.Content);
 
-                    //Handle response to client
-                    string response = "";
-                    if(bookHelper != null && userHelper != null)
-                    {
-                        response = JsonSerializer.Serialize(bookHelper) + ", " + JsonSerializer.Serialize(userHelper);
-                    }
+                            //Receive book from helper
+                            message = ReceiveMessage(bookHelperSocket);
+                            if (message.Type == MessageType.BookInquiryReply)
+                            {
+                                //Send book to client
+                                SendMessage(newsocket, MessageType.BookInquiryReply, message.Content);
+                            }
 
-                    ClientResponseHandler(newsocket, response);
-                    Console.WriteLine("returned response: " + response + "\n");
-
-                    //Check if connection should be terminated
-                    if (clientRequest.Length <= 0 || clientRequest == "TERMINATE")
-                    {
-                        break;
+                            //Close book helper
+                            bookHelperSocket.Close();
+                        }
                     }
                 }
 
@@ -122,68 +113,29 @@ namespace LibServer
             }
         }
 
-        //Handle incoming request from the client
-        private string ClientRequestHandler(Socket socket)
+        private void SendMessage(Socket socket, MessageType type, string text)
         {
-            byte[] incomingmsgCLIENT = new byte[1000];
-            int b = socket.Receive(incomingmsgCLIENT);
-            return Encoding.ASCII.GetString(incomingmsgCLIENT, 0, b);
-        }
+            //send request
+            Message message = new Message();
+            message.Type = type;
+            message.Content = text;
+            string messageString = JsonSerializer.Serialize(message);
 
-        //Handle outgoing response to the client
-        private void ClientResponseHandler(Socket socket, string message)
-        {
-            byte[] msg = Encoding.ASCII.GetBytes(message);
+            byte[] msg = Encoding.ASCII.GetBytes(messageString);
             socket.Send(msg);
-            Console.WriteLine("Send message");
+            Console.WriteLine("Send: " + text);
         }
 
-        //Handle outgoing request to the bookHelper
-        private BookData BookHelperHandler(string bookName)
+        private Message ReceiveMessage(Socket socket)
         {
-            //voorbereiding voor TCP connectie
-            Socket bookHelperSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-            IPEndPoint iPEndPoint = new IPEndPoint(IPAddress.Parse(settings.BookHelperIPAddress), settings.BookHelperPortNumber);
-            // het proberen om TCP connectie te maken
-            bookHelperSocket.Connect(iPEndPoint);
-
-            //send request
-            byte[] msg = Encoding.ASCII.GetBytes(bookName.Length > 0 ? bookName : "TERMINATE");
-            bookHelperSocket.Send(msg);
-
             //receive response
             byte[] incomingmsg = new byte[1000];
-            int response = bookHelperSocket.Receive(incomingmsg);
-            string responseString = Encoding.ASCII.GetString(incomingmsg, 0, response);
-            bookHelperSocket.Close();
+            int response = socket.Receive(incomingmsg);
+            string responseJson = Encoding.ASCII.GetString(incomingmsg, 0, response);
 
-            return JsonSerializer.Deserialize<BookData>(responseString);
-        }
-
-        //Handle outgoing request to the userHelper
-        private UserData UserHelperHandler(string author)
-        {
-            //voorbereiding voor TCP connectie
-            Socket userHelperSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-            IPEndPoint iPEndPoint = new IPEndPoint(IPAddress.Parse(settings.UserHelperIPAddress), settings.UserHelperPortNumber);
-            // het proberen om TCP connectie te maken
-            userHelperSocket.Connect(iPEndPoint);
-
-            //send request
-            byte[] msg = Encoding.ASCII.GetBytes(author.Length > 0 ? author : "TERMINATE");
-            userHelperSocket.Send(msg);
-
-            //receive response
-            byte[] incomingmsg = new byte[1000];
-            int response = userHelperSocket.Receive(incomingmsg);
-            string responseString = Encoding.ASCII.GetString(incomingmsg, 0, response);
-            userHelperSocket.Close();
-
-            return JsonSerializer.Deserialize<UserData>(responseString);
+            Message message = JsonSerializer.Deserialize<Message>(responseJson);
+            Console.WriteLine("Received: " + message.Content);
+            return message;
         }
     }
-
 }
-
-
-

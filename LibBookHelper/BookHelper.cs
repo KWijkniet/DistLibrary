@@ -53,7 +53,6 @@ namespace BookHelper
         public void start()
         {
             //todo: implement the body. Add extra fields and methods to the class if needed
-
             Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
             IPEndPoint iPEndPoint = new IPEndPoint(ipAddress, settings.BookHelperPortNumber);
 
@@ -69,24 +68,17 @@ namespace BookHelper
                 {
                     //Connect
                     Socket newsocket = socket.Accept();
+                    Console.WriteLine("Connected");
 
-                    //Handle incoming client request
-                    string clientRequest = ClientRequestHandler(newsocket);
-                    Console.WriteLine("Client connected with message: " + clientRequest);
-
-                    //Find the correct book
-                    BookData book = FindBookByName(clientRequest);
-
-                    //Handle response to client
-                    string response = JsonSerializer.Serialize(book);
-                    ClientResponseHandler(newsocket, response);
-                    Console.WriteLine("returned response: " + response + "\n");
-
-                    //Check if connection should be terminated
-                    if (clientRequest.Length <= 0 || clientRequest == "TERMINATE")
+                    Message message = ReceiveMessage(newsocket);
+                    if(message.Type == MessageType.BookInquiry)
                     {
-                        break;
+                        BookData book = FindBookByName(message.Content);
+
+                        SendMessage(newsocket, MessageType.BookInquiryReply, JsonSerializer.Serialize(book));
                     }
+
+                    newsocket.Close();
                 }
 
                 Console.WriteLine("\n Closing connection...");
@@ -98,19 +90,29 @@ namespace BookHelper
             }
         }
 
-        //Handle incoming request from the client
-        private string ClientRequestHandler(Socket socket)
+        private void SendMessage(Socket socket, MessageType type, string text)
         {
-            byte[] incomingmsgCLIENT = new byte[1000];
-            int b = socket.Receive(incomingmsgCLIENT);
-            return Encoding.ASCII.GetString(incomingmsgCLIENT, 0, b);
+            //send request
+            Message message = new Message();
+            message.Type = type;
+            message.Content = text;
+            string messageString = JsonSerializer.Serialize(message);
+
+            byte[] msg = Encoding.ASCII.GetBytes(messageString);
+            socket.Send(msg);
+            Console.WriteLine("Send: " + text);
         }
 
-        //Handle outgoing response to the client
-        private void ClientResponseHandler(Socket socket, string message)
+        private Message ReceiveMessage(Socket socket)
         {
-            byte[] msg = Encoding.ASCII.GetBytes(message);
-            socket.Send(msg);
+            //receive response
+            byte[] incomingmsg = new byte[1000];
+            int response = socket.Receive(incomingmsg);
+            string responseJson = Encoding.ASCII.GetString(incomingmsg, 0, response);
+
+            Message message = JsonSerializer.Deserialize<Message>(responseJson);
+            Console.WriteLine("Received: " + message.Content);
+            return message;
         }
 
         private BookData FindBookByName(string name)
