@@ -63,24 +63,45 @@ namespace BookHelper
                 socket.Listen(settings.ServerListeningQueue);
                 Console.WriteLine("\n Connection started. Awaiting clients...");
 
-                // het opnemen van informatie dat de server binnne krijgt en uitprinten
-                while (true)
+                try
                 {
-                    //Connect
-                    Socket newsocket = socket.Accept();
-                    Console.WriteLine("Connected");
-
-                    Message message = ReceiveMessage(newsocket);
-                    if(message.Type == MessageType.BookInquiry)
+                    while (true)
                     {
-                        BookData book = FindBookByName(message.Content);
+                        //Connect
+                        Socket newsocket = socket.Accept();
+                        Console.WriteLine(" Connected");
+                        // het opnemen van informatie dat dr binnenkrijgt en uitprinten
 
-                        SendMessage(newsocket, MessageType.BookInquiryReply, JsonSerializer.Serialize(book));
+                        while (true)
+                        {
+                            Message message = ReceiveMessage(newsocket);
+                            if (message.Type == MessageType.BookInquiry)
+                            {
+                                BookData book = FindBookByName(message.Content);
+                                if (book == null)
+                                {
+                                    SendMessage(newsocket, MessageType.NotFound, "");
+                                }
+                                else
+                                {
+                                    SendMessage(newsocket, MessageType.BookInquiryReply, JsonSerializer.Serialize(book));
+                                }
+                            }
+                            else if (message.Type == MessageType.EndCommunication)
+                            {
+                                break;
+                            }
+                        }
+                        newsocket.Close();
+                        break;
                     }
-
-                    newsocket.Close();
                 }
-
+                catch (Exception e) 
+                {
+                    Console.WriteLine("\nAn error occured: " + e.Message + "\n" + e.StackTrace, ConsoleColor.Red);
+                }
+                
+                
                 Console.WriteLine("\n Closing connection...");
                 socket.Close();
             }

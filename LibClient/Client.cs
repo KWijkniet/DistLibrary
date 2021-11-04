@@ -97,15 +97,51 @@ namespace LibClient
             Message message = ReceiveMessage();
             if (message.Type == MessageType.Welcome)
             {
-                SendMessage(MessageType.BookInquiry, bookName.Length > 0 ? bookName : "TERMINATE");
-
-                message = ReceiveMessage();
-                if (message.Type == MessageType.BookInquiryReply)
+                //If client id is -1 and no book name has been given
+                if(client_id == "-1" && bookName.Length <= 0)
                 {
-                    BookData book = JsonSerializer.Deserialize<BookData>(message.Content);
-                    if(book != null)
+                    //Request end of communications and shutdown of all applications
+                    SendMessage(MessageType.EndCommunication, "");
+                }
+                else
+                {
+                    //Request book from server
+                    SendMessage(MessageType.BookInquiry, bookName);
+
+                    message = ReceiveMessage();
+                    if (message.Type == MessageType.BookInquiryReply)
                     {
-                        result.Status = book.Status;
+                        BookData book = JsonSerializer.Deserialize<BookData>(message.Content);
+                        if (book != null)
+                        {
+                            //Store status of the book
+                            result.Status = book.Status;
+
+                            //If status == borrowed then request user information
+                            if (result.Status == "Borrowed")
+                            {
+                                SendMessage(MessageType.UserInquiry, book.BorrowedBy);
+
+                                message = ReceiveMessage();
+                                if (message.Type == MessageType.UserInquiryReply)
+                                {
+                                    UserData user = JsonSerializer.Deserialize<UserData>(message.Content);
+                                    if (user != null)
+                                    {
+                                        //Store user info of the book
+                                        result.BorrowerName = user.Name;
+                                        result.BorrowerEmail = user.Email;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    else if (message.Type == MessageType.NotFound)
+                    {
+                        //If not found make sure the variables are null
+                        result.Status = null;
+                        result.BorrowerName = null;
+                        result.BorrowerEmail = null;
                     }
                 }
             }

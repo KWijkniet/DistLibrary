@@ -28,7 +28,7 @@ namespace UserHelper
         public string authorFile = @"../../../Users.json"; // for debugging
         private Setting settings;
         private IPAddress ipAddress;
-        private List<UserData> authors = new List<UserData>();
+        private List<UserData> users = new List<UserData>();
 
         public SequentialHelper()
         {
@@ -41,8 +41,8 @@ namespace UserHelper
                 this.settings = JsonSerializer.Deserialize<Setting>(configContent);
                 this.ipAddress = IPAddress.Parse(settings.UserHelperIPAddress);
 
-                string authorContent = File.ReadAllText(authorFile);
-                this.authors = JsonSerializer.Deserialize<List<UserData>>(authorContent);
+                string userContent = File.ReadAllText(authorFile);
+                this.users = JsonSerializer.Deserialize<List<UserData>>(userContent);
             }
             catch (Exception e)
             {
@@ -71,23 +71,22 @@ namespace UserHelper
                     //Connect
                     Socket newsocket = socket.Accept();
 
-                    //Handle incoming client request
-                    string clientRequest = ClientRequestHandler(newsocket);
-                    Console.WriteLine("Client connected with message: " + clientRequest);
-
-                    //Find the correct book
-                    UserData author = FindAuthorByName(clientRequest);
-
-                    //Handle response to client
-                    string response = JsonSerializer.Serialize(author);
-                    ClientResponseHandler(newsocket, response);
-                    Console.WriteLine("returned response: " + response + "\n");
-
-                    //Check if connection should be terminated
-                    if (clientRequest.Length <= 0 || clientRequest == "TERMINATE")
+                    //Receive message from server (containing the user_id)
+                    Message message = ReceiveMessage(newsocket);
+                    if(message.Type == MessageType.UserInquiry)
                     {
+                        //Find user based on given ID
+                        UserData user = FindUserById(message.Content);
+
+                        //Respond by returning the user information
+                        SendMessage(newsocket, MessageType.UserInquiryReply, JsonSerializer.Serialize(user));
+                    }
+                    else if (message.Type == MessageType.EndCommunication)
+                    {
+                        newsocket.Close();
                         break;
                     }
+                    newsocket.Close();
                 }
 
                 Console.WriteLine("\n Closing connection...");
@@ -99,6 +98,31 @@ namespace UserHelper
             }
         }
 
+        private void SendMessage(Socket socket, MessageType type, string text)
+        {
+            //send request
+            Message message = new Message();
+            message.Type = type;
+            message.Content = text;
+            string messageString = JsonSerializer.Serialize(message);
+
+            byte[] msg = Encoding.ASCII.GetBytes(messageString);
+            socket.Send(msg);
+            Console.WriteLine("Send: " + text);
+        }
+
+        private Message ReceiveMessage(Socket socket)
+        {
+            //receive response
+            byte[] incomingmsg = new byte[1000];
+            int response = socket.Receive(incomingmsg);
+            string responseJson = Encoding.ASCII.GetString(incomingmsg, 0, response);
+
+            Message message = JsonSerializer.Deserialize<Message>(responseJson);
+            Console.WriteLine("Received: " + message.Content);
+            return message;
+        }
+        /*
         //Handle incoming request from the client
         private string ClientRequestHandler(Socket socket)
         {
@@ -112,15 +136,15 @@ namespace UserHelper
         {
             byte[] msg = Encoding.ASCII.GetBytes(message);
             socket.Send(msg);
-        }
+        }*/
 
-        private UserData FindAuthorByName(string name)
+        private UserData FindUserById(string id)
         {
-            foreach (UserData author in authors)
+            foreach (UserData user in users)
             {
-                if (author.Name == name)
+                if (user.User_id == id)
                 {
-                    return author;
+                    return user;
                 }
             }
             return null;

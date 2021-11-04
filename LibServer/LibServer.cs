@@ -57,6 +57,14 @@ namespace LibServer
             Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
             IPEndPoint iPEndPoint = new IPEndPoint(ipAddress, settings.ServerPortNumber);
 
+            //Prepare book helper
+            Socket bookHelperSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+            IPEndPoint iPEndPointBookHelper = new IPEndPoint(IPAddress.Parse(settings.BookHelperIPAddress), settings.BookHelperPortNumber);
+
+            //Prepare user helper
+            Socket userHelperSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+            IPEndPoint iPEndPointUserHelper = new IPEndPoint(IPAddress.Parse(settings.UserHelperIPAddress), settings.UserHelperPortNumber);
+
             try
             {
                 //het wachten op een client voor een connectie
@@ -64,7 +72,11 @@ namespace LibServer
                 socket.Listen(settings.ServerListeningQueue);
                 Console.WriteLine("\n Connection started. Awaiting clients...");
 
-                // het opnemen van informatie dat de server binnne krijgt en uitprinten
+                //Connect to helpers
+                bookHelperSocket.Connect(iPEndPointBookHelper);
+                userHelperSocket.Connect(iPEndPointUserHelper);
+
+                // het opnemen van informatie dat de server binnen krijgt en uitprinten
                 while (true)
                 {
                     //Connect
@@ -82,12 +94,8 @@ namespace LibServer
                         message = ReceiveMessage(newsocket);
                         if(message.Type == MessageType.BookInquiry)
                         {
-                            //Connect to book helper
-                            Socket bookHelperSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-                            IPEndPoint iPEndPointHelper = new IPEndPoint(IPAddress.Parse(settings.BookHelperIPAddress), settings.BookHelperPortNumber);
-                            bookHelperSocket.Connect(iPEndPointHelper);
-
                             //Request book from helper
+                            //SendMessage2(bookHelperSocket, iPEndPointBookHelper, MessageType.BookInquiry, message.Content);
                             SendMessage(bookHelperSocket, MessageType.BookInquiry, message.Content);
 
                             //Receive book from helper
@@ -96,15 +104,50 @@ namespace LibServer
                             {
                                 //Send book to client
                                 SendMessage(newsocket, MessageType.BookInquiryReply, message.Content);
+
+                                //Await response from client and connect to user helper
+                                message = ReceiveMessage(newsocket);
+                                if (message.Type == MessageType.UserInquiry)
+                                {
+                                    //Request user from helper
+                                    SendMessage(userHelperSocket, MessageType.UserInquiry, message.Content);
+
+                                    //Receive user from helper
+                                    message = ReceiveMessage(userHelperSocket);
+                                    if (message.Type == MessageType.UserInquiryReply)
+                                    {
+                                        //Send user to client
+                                        SendMessage(newsocket, MessageType.UserInquiryReply, message.Content);
+                                    }
+
+                                    //Close user helper
+                                    userHelperSocket.Disconnect(true);
+                                }
+                            }
+                            else if (message.Type == MessageType.NotFound)
+                            {
+                                //Send book to client
+                                SendMessage(newsocket, MessageType.NotFound, message.Content);
                             }
 
                             //Close book helper
-                            bookHelperSocket.Close();
+                            bookHelperSocket.Disconnect(true);
+                        }
+                        else if(message.Type == MessageType.EndCommunication)
+                        {
+                            //Request termination of all applications
+                            SendMessage(bookHelperSocket, MessageType.EndCommunication, "");
+                            SendMessage(userHelperSocket, MessageType.EndCommunication, "");
+
+                            //Stop our server
+                            break;
                         }
                     }
                 }
 
                 Console.WriteLine("\n Closing connection...");
+                bookHelperSocket.Close();
+                userHelperSocket.Close();
                 socket.Close();
             }
             catch (Exception e)
@@ -123,6 +166,19 @@ namespace LibServer
 
             byte[] msg = Encoding.ASCII.GetBytes(messageString);
             socket.Send(msg);
+            Console.WriteLine("Send: " + text);
+        }
+
+        private void SendMessage2(Socket socket, IPEndPoint endpoint, MessageType type, string text)
+        {
+            //send request
+            Message message = new Message();
+            message.Type = type;
+            message.Content = text;
+            string messageString = JsonSerializer.Serialize(message);
+
+            byte[] msg = Encoding.ASCII.GetBytes(messageString);
+            socket.SendTo(msg, endpoint);
             Console.WriteLine("Send: " + text);
         }
 
