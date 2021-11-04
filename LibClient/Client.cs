@@ -90,7 +90,19 @@ namespace LibClient
             serverEndPoint = new IPEndPoint(ipAddress, settings.ServerPortNumber);
             clientSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
             // het proberen om TCP connectie te maken
-            clientSocket.Connect(serverEndPoint);
+            while (true)
+            {
+                try
+                {
+                    clientSocket.Connect(serverEndPoint);
+                    break;
+                }
+                catch(Exception e)
+                {
+                    Console.Out.WriteLine("Trying to connect");
+                }
+
+            }
 
             //send request
             byte[] msg = Encoding.ASCII.GetBytes(bookName.Length > 0 ? bookName : "TERMINATE");
