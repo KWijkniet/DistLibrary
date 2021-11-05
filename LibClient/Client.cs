@@ -43,8 +43,8 @@ namespace LibClient
         public string client_id;
         private string bookName;
         // all the required settings are provided in this file
-        //public string configFile = @"../ClientServerConfig.json";
-        public string configFile = @"../../../../ClientServerConfig.json"; // for debugging
+        public string configFile = @"../ClientServerConfig.json";
+        //public string configFile = @"../../../../ClientServerConfig.json"; // for debugging
 
         // todo: add extra fields here in case needed 
 
