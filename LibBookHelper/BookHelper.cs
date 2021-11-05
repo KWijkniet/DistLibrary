@@ -61,48 +61,37 @@ namespace BookHelper
                 //het wachten op een client voor een connectie
                 socket.Bind(iPEndPoint);
                 socket.Listen(settings.ServerListeningQueue);
-                Console.WriteLine("\n Connection started. Awaiting clients...");
 
-                try
+                while (true)
                 {
+                    //Connect
+                    Socket newsocket = socket.Accept();
+
+                    // het opnemen van informatie dat dr binnenkrijgt en uitprinten
                     while (true)
                     {
-                        //Connect
-                        Socket newsocket = socket.Accept();
-                        Console.WriteLine(" Connected");
-                        // het opnemen van informatie dat dr binnenkrijgt en uitprinten
-
-                        while (true)
+                        Message message = ReceiveMessage(newsocket);
+                        if (message.Type == MessageType.BookInquiry)
                         {
-                            Message message = ReceiveMessage(newsocket);
-                            if (message.Type == MessageType.BookInquiry)
+                            BookData book = FindBookByName(message.Content);
+                            if (book == null)
                             {
-                                BookData book = FindBookByName(message.Content);
-                                if (book == null)
-                                {
-                                    SendMessage(newsocket, MessageType.NotFound, "");
-                                }
-                                else
-                                {
-                                    SendMessage(newsocket, MessageType.BookInquiryReply, JsonSerializer.Serialize(book));
-                                }
+                                SendMessage(newsocket, MessageType.NotFound, "");
                             }
-                            else if (message.Type == MessageType.EndCommunication)
+                            else
                             {
-                                break;
+                                SendMessage(newsocket, MessageType.BookInquiryReply, JsonSerializer.Serialize(book));
                             }
                         }
-                        newsocket.Close();
-                        break;
+                        else if (message.Type == MessageType.EndCommunication)
+                        {
+                            break;
+                        }
                     }
+                    newsocket.Close();
+                    break;
                 }
-                catch (Exception e) 
-                {
-                    Console.WriteLine("\nAn error occured: " + e.Message + "\n" + e.StackTrace, ConsoleColor.Red);
-                }
-                
-                
-                Console.WriteLine("\n Closing connection...");
+
                 socket.Close();
             }
             catch (Exception e)
@@ -121,7 +110,6 @@ namespace BookHelper
 
             byte[] msg = Encoding.ASCII.GetBytes(messageString);
             socket.Send(msg);
-            Console.WriteLine("Send: " + text);
         }
 
         private Message ReceiveMessage(Socket socket)
@@ -132,7 +120,6 @@ namespace BookHelper
             string responseJson = Encoding.ASCII.GetString(incomingmsg, 0, response);
 
             Message message = JsonSerializer.Deserialize<Message>(responseJson);
-            Console.WriteLine("Received: " + message.Content);
             return message;
         }
 

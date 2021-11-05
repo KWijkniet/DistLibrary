@@ -21,7 +21,6 @@ namespace LibServer
         public int ServerListeningQueue { get; set; }
     }
 
-
     // Note: Complete the implementation of this class. You can adjust the structure of this class. 
     public class SequentialServer
     {
@@ -70,7 +69,6 @@ namespace LibServer
                 //het wachten op een client voor een connectie
                 socket.Bind(iPEndPoint);
                 socket.Listen(settings.ServerListeningQueue);
-                Console.WriteLine("\n Connection started. Awaiting clients...");
 
                 //Connect to helpers
                 bookHelperSocket.Connect(iPEndPointBookHelper);
@@ -81,7 +79,6 @@ namespace LibServer
                 {
                     //Connect
                     Socket newsocket = socket.Accept();
-                    Console.WriteLine("Connected");
 
                     //Receive client_id from client
                     Message message = ReceiveMessage(newsocket);
@@ -92,10 +89,9 @@ namespace LibServer
 
                         //Receive next message from client
                         message = ReceiveMessage(newsocket);
-                        if(message.Type == MessageType.BookInquiry)
+                        if (message.Type == MessageType.BookInquiry)
                         {
                             //Request book from helper
-                            //SendMessage2(bookHelperSocket, iPEndPointBookHelper, MessageType.BookInquiry, message.Content);
                             SendMessage(bookHelperSocket, MessageType.BookInquiry, message.Content);
 
                             //Receive book from helper
@@ -105,23 +101,25 @@ namespace LibServer
                                 //Send book to client
                                 SendMessage(newsocket, MessageType.BookInquiryReply, message.Content);
 
-                                //Await response from client and connect to user helper
-                                message = ReceiveMessage(newsocket);
-                                if (message.Type == MessageType.UserInquiry)
+                                //we have the book
+                                BookData book = JsonSerializer.Deserialize<BookData>(message.Content);
+                                if(book != null && book.Status == "Borrowed")
                                 {
-                                    //Request user from helper
-                                    SendMessage(userHelperSocket, MessageType.UserInquiry, message.Content);
-
-                                    //Receive user from helper
-                                    message = ReceiveMessage(userHelperSocket);
-                                    if (message.Type == MessageType.UserInquiryReply)
+                                    //Await response from client and connect to user helper
+                                    message = ReceiveMessage(newsocket);
+                                    if (message.Type == MessageType.UserInquiry)
                                     {
-                                        //Send user to client
-                                        SendMessage(newsocket, MessageType.UserInquiryReply, message.Content);
-                                    }
+                                        //Request user from helper
+                                        SendMessage(userHelperSocket, MessageType.UserInquiry, message.Content);
 
-                                    //Close user helper
-                                    userHelperSocket.Disconnect(true);
+                                        //Receive user from helper
+                                        message = ReceiveMessage(userHelperSocket);
+                                        if (message.Type == MessageType.UserInquiryReply)
+                                        {
+                                            //Send user to client
+                                            SendMessage(newsocket, MessageType.UserInquiryReply, message.Content);
+                                        }
+                                    }
                                 }
                             }
                             else if (message.Type == MessageType.NotFound)
@@ -129,9 +127,6 @@ namespace LibServer
                                 //Send book to client
                                 SendMessage(newsocket, MessageType.NotFound, message.Content);
                             }
-
-                            //Close book helper
-                            bookHelperSocket.Disconnect(true);
                         }
                         else if(message.Type == MessageType.EndCommunication)
                         {
@@ -145,7 +140,6 @@ namespace LibServer
                     }
                 }
 
-                Console.WriteLine("\n Closing connection...");
                 bookHelperSocket.Close();
                 userHelperSocket.Close();
                 socket.Close();
@@ -166,20 +160,6 @@ namespace LibServer
 
             byte[] msg = Encoding.ASCII.GetBytes(messageString);
             socket.Send(msg);
-            Console.WriteLine("Send: " + text);
-        }
-
-        private void SendMessage2(Socket socket, IPEndPoint endpoint, MessageType type, string text)
-        {
-            //send request
-            Message message = new Message();
-            message.Type = type;
-            message.Content = text;
-            string messageString = JsonSerializer.Serialize(message);
-
-            byte[] msg = Encoding.ASCII.GetBytes(messageString);
-            socket.SendTo(msg, endpoint);
-            Console.WriteLine("Send: " + text);
         }
 
         private Message ReceiveMessage(Socket socket)
@@ -190,7 +170,6 @@ namespace LibServer
             string responseJson = Encoding.ASCII.GetString(incomingmsg, 0, response);
 
             Message message = JsonSerializer.Deserialize<Message>(responseJson);
-            Console.WriteLine("Received: " + message.Content);
             return message;
         }
     }

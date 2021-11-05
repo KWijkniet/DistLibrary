@@ -84,7 +84,6 @@ namespace LibClient
         {
             // todo: implement the body to communicate with the server and requests the book. Return the result as an Output object.
             // Adding extra methods to the class is permitted. The signature of this method must not change.
-            Console.WriteLine("Starting client: " + client_id + "\nBook: " + bookName);
 
             //voorbereiding voor TCP connectie
             serverEndPoint = new IPEndPoint(ipAddress, settings.ServerPortNumber);
@@ -98,7 +97,7 @@ namespace LibClient
             if (message.Type == MessageType.Welcome)
             {
                 //If client id is -1 and no book name has been given
-                if(client_id == "-1" && bookName.Length <= 0)
+                if(client_id == "Client -1" && bookName.Length <= 0)
                 {
                     //Request end of communications and shutdown of all applications
                     SendMessage(MessageType.EndCommunication, "");
@@ -148,7 +147,6 @@ namespace LibClient
 
             //End of client
             clientSocket.Close();
-            Console.WriteLine("Quiting client: " + client_id);
             return result;
         }
 
@@ -162,8 +160,6 @@ namespace LibClient
 
             byte[] msg = Encoding.ASCII.GetBytes(messageString);
             clientSocket.Send(msg);
-
-            Console.WriteLine("Send: " + text);
         }
 
         private Message ReceiveMessage()
@@ -174,7 +170,6 @@ namespace LibClient
             string responseJson = Encoding.ASCII.GetString(incomingmsg, 0, response);
 
             Message message = JsonSerializer.Deserialize<Message>(responseJson);
-            Console.WriteLine("Received: " + message.Content);
             return message;
         }
     }

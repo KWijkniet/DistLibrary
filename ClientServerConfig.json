@@ -1,4 +1,8 @@
 ﻿{
+    "_comment": [
+        "Devin Chen 1020159",
+        "Kelvin Wijkniet 1006099"
+    ],
     "ServerPortNumber": 11111,
     "BookHelperPortNumber": 11112,
     "UserHelperPortNumber": 11113,

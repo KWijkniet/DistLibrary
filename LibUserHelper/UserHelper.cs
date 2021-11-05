@@ -33,7 +33,6 @@ namespace UserHelper
         public SequentialHelper()
         {
             //todo: implement the body. Add extra fields and methods to the class if needed
-
             try
             {
                 //reading the json file
@@ -54,7 +53,6 @@ namespace UserHelper
         public void start()
         {
             //todo: implement the body. Add extra fields and methods to the class if needed
-
             Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
             IPEndPoint iPEndPoint = new IPEndPoint(ipAddress, settings.UserHelperPortNumber);
 
@@ -63,39 +61,43 @@ namespace UserHelper
                 //het wachten op een client voor een connectie
                 socket.Bind(iPEndPoint);
                 socket.Listen(settings.ServerListeningQueue);
-                Console.WriteLine("\n Connection started. Awaiting clients...");
 
-                // het opnemen van informatie dat de server binnne krijgt en uitprinten
                 while (true)
                 {
                     //Connect
                     Socket newsocket = socket.Accept();
 
-                    //Receive message from server (containing the user_id)
-                    Message message = ReceiveMessage(newsocket);
-                    if(message.Type == MessageType.UserInquiry)
+                    // het opnemen van informatie dat dr binnenkrijgt en uitprinten
+                    while (true)
                     {
-                        //Find user based on given ID
-                        UserData user = FindUserById(message.Content);
-
-                        //Respond by returning the user information
-                        SendMessage(newsocket, MessageType.UserInquiryReply, JsonSerializer.Serialize(user));
-                    }
-                    else if (message.Type == MessageType.EndCommunication)
-                    {
-                        newsocket.Close();
-                        break;
+                        Message message = ReceiveMessage(newsocket);
+                        if (message.Type == MessageType.UserInquiry)
+                        {
+                            UserData user = FindUserById(message.Content);
+                            if (user == null)
+                            {
+                                SendMessage(newsocket, MessageType.NotFound, "");
+                            }
+                            else
+                            {
+                                SendMessage(newsocket, MessageType.UserInquiryReply, JsonSerializer.Serialize(user));
+                            }
+                        }
+                        else if (message.Type == MessageType.EndCommunication)
+                        {
+                            break;
+                        }
                     }
                     newsocket.Close();
+                    break;
                 }
-
-                Console.WriteLine("\n Closing connection...");
-                socket.Close();
             }
             catch (Exception e)
             {
                 Console.WriteLine("\nAn error occured: " + e.Message + "\n" + e.StackTrace, ConsoleColor.Red);
             }
+
+            socket.Close();
         }
 
         private void SendMessage(Socket socket, MessageType type, string text)
@@ -108,7 +110,6 @@ namespace UserHelper
 
             byte[] msg = Encoding.ASCII.GetBytes(messageString);
             socket.Send(msg);
-            Console.WriteLine("Send: " + text);
         }
 
         private Message ReceiveMessage(Socket socket)
@@ -119,24 +120,8 @@ namespace UserHelper
             string responseJson = Encoding.ASCII.GetString(incomingmsg, 0, response);
 
             Message message = JsonSerializer.Deserialize<Message>(responseJson);
-            Console.WriteLine("Received: " + message.Content);
             return message;
         }
-        /*
-        //Handle incoming request from the client
-        private string ClientRequestHandler(Socket socket)
-        {
-            byte[] incomingmsgCLIENT = new byte[1000];
-            int b = socket.Receive(incomingmsgCLIENT);
-            return Encoding.ASCII.GetString(incomingmsgCLIENT, 0, b);
-        }
-
-        //Handle outgoing response to the client
-        private void ClientResponseHandler(Socket socket, string message)
-        {
-            byte[] msg = Encoding.ASCII.GetBytes(message);
-            socket.Send(msg);
-        }*/
 
         private UserData FindUserById(string id)
         {
