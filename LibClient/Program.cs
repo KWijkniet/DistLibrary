@@ -21,12 +21,12 @@ namespace LibClientSimulator
         private List<InputData> inputDataList;
         private SimpleClient[] clients;
         private Output[] results;
-        //private string inputFile = @"LibInput.json";
-        //private string outputFile = @"LibOutput.json";
+        private string inputFile = @"LibInput.json";
+        private string outputFile = @"LibOutput.json";
 
         // paths for debugging
-        private string inputFile = @"../../../LibInput.json";
-        private string outputFile = @"../../../LibOutput.json";
+        //private string inputFile = @"../../../LibInput.json";
+        //private string outputFile = @"../../../LibOutput.json";
 
         /// <summary>
         /// Reads the input file and creats the clients and output objects accordingly

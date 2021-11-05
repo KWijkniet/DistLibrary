@@ -25,8 +25,8 @@ namespace LibServer
     public class SequentialServer
     {
         // all the required settings are provided in this file
-        //public string configFile = @"../ClientServerConfig.json";
-        public string configFile = @"../../../../ClientServerConfig.json"; // for debugging
+        public string configFile = @"../ClientServerConfig.json";
+        //public string configFile = @"../../../../ClientServerConfig.json"; // for debugging
 
         private Setting settings;
         private IPAddress ipAddress;

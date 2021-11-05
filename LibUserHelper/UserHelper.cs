@@ -24,8 +24,10 @@ namespace UserHelper
     // Note: Complete the implementation of this class. You can adjust the structure of this class.
     public class SequentialHelper
     {
-        public string configFile = @"../../../../ClientServerConfig.json"; // for debugging
-        public string authorFile = @"../../../Users.json"; // for debugging
+        public string configFile = @"../ClientServerConfig.json";
+        public string authorFile = @"Users.json";
+        //public string configFile = @"../../../../ClientServerConfig.json"; // for debugging
+        //public string authorFile = @"../../../Users.json"; // for debugging
         private Setting settings;
         private IPAddress ipAddress;
         private List<UserData> users = new List<UserData>();

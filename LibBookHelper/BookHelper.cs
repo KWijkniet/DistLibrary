@@ -24,8 +24,10 @@ namespace BookHelper
     // Note: Complete the implementation of this class. You can adjust the structure of this class.
     public class SequentialHelper
     {
-        public string configFile = @"../../../../ClientServerConfig.json"; // for debugging
-        public string bookFile = @"../../../books.json"; // for debugging
+        public string configFile = @"../ClientServerConfig.json";
+        public string bookFile = @"books.json";
+        //public string configFile = @"../../../../ClientServerConfig.json"; // for debugging
+        //public string bookFile = @"../../../books.json"; // for debugging
         private Setting settings;
         private IPAddress ipAddress;
         private List<BookData> books = new List<BookData>();
