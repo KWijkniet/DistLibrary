@@ -53,7 +53,6 @@ namespace BookHelper
         public void start()
         {
             //todo: implement the body. Add extra fields and methods to the class if needed
-
             Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
             IPEndPoint iPEndPoint = new IPEndPoint(ipAddress, settings.BookHelperPortNumber);
 
@@ -62,34 +61,37 @@ namespace BookHelper
                 //het wachten op een client voor een connectie
                 socket.Bind(iPEndPoint);
                 socket.Listen(settings.ServerListeningQueue);
-                Console.WriteLine("\n Connection started. Awaiting clients...");
 
-                // het opnemen van informatie dat de server binnne krijgt en uitprinten
                 while (true)
                 {
                     //Connect
                     Socket newsocket = socket.Accept();
 
-                    //Handle incoming client request
-                    string clientRequest = ClientRequestHandler(newsocket);
-                    Console.WriteLine("Client connected with message: " + clientRequest);
-
-                    //Find the correct book
-                    BookData book = FindBookByName(clientRequest);
-
-                    //Handle response to client
-                    string response = JsonSerializer.Serialize(book);
-                    ClientResponseHandler(newsocket, response);
-                    Console.WriteLine("returned response: " + response + "\n");
-
-                    //Check if connection should be terminated
-                    if (clientRequest.Length <= 0 || clientRequest == "TERMINATE")
+                    // het opnemen van informatie dat dr binnenkrijgt en uitprinten
+                    while (true)
                     {
-                        break;
+                        Message message = ReceiveMessage(newsocket);
+                        if (message.Type == MessageType.BookInquiry)
+                        {
+                            BookData book = FindBookByName(message.Content);
+                            if (book == null)
+                            {
+                                SendMessage(newsocket, MessageType.NotFound, "");
+                            }
+                            else
+                            {
+                                SendMessage(newsocket, MessageType.BookInquiryReply, JsonSerializer.Serialize(book));
+                            }
+                        }
+                        else if (message.Type == MessageType.EndCommunication)
+                        {
+                            break;
+                        }
                     }
+                    newsocket.Close();
+                    break;
                 }
 
-                Console.WriteLine("\n Closing connection...");
                 socket.Close();
             }
             catch (Exception e)
@@ -98,19 +100,27 @@ namespace BookHelper
             }
         }
 
-        //Handle incoming request from the client
-        private string ClientRequestHandler(Socket socket)
+        private void SendMessage(Socket socket, MessageType type, string text)
         {
-            byte[] incomingmsgCLIENT = new byte[1000];
-            int b = socket.Receive(incomingmsgCLIENT);
-            return Encoding.ASCII.GetString(incomingmsgCLIENT, 0, b);
+            //send request
+            Message message = new Message();
+            message.Type = type;
+            message.Content = text;
+            string messageString = JsonSerializer.Serialize(message);
+
+            byte[] msg = Encoding.ASCII.GetBytes(messageString);
+            socket.Send(msg);
         }
 
-        //Handle outgoing response to the client
-        private void ClientResponseHandler(Socket socket, string message)
+        private Message ReceiveMessage(Socket socket)
         {
-            byte[] msg = Encoding.ASCII.GetBytes(message);
-            socket.Send(msg);
+            //receive response
+            byte[] incomingmsg = new byte[1000];
+            int response = socket.Receive(incomingmsg);
+            string responseJson = Encoding.ASCII.GetString(incomingmsg, 0, response);
+
+            Message message = JsonSerializer.Deserialize<Message>(responseJson);
+            return message;
         }
 
         private BookData FindBookByName(string name)

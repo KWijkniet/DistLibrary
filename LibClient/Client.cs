@@ -61,6 +61,7 @@ namespace LibClient
             this.result = new Output();
             result.BookName = bookName;
             result.Client_id = this.client_id;
+
             // read JSON directly from a file
             try
             {
@@ -84,8 +85,6 @@ namespace LibClient
             // todo: implement the body to communicate with the server and requests the book. Return the result as an Output object.
             // Adding extra methods to the class is permitted. The signature of this method must not change.
 
-            Console.WriteLine("Starting client: " + client_id + "\nBook: " + bookName);
-
             //voorbereiding voor TCP connectie
             serverEndPoint = new IPEndPoint(ipAddress, settings.ServerPortNumber);
             clientSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
@@ -93,19 +92,85 @@ namespace LibClient
             clientSocket.Connect(serverEndPoint);
 
             //send request
-            byte[] msg = Encoding.ASCII.GetBytes(bookName.Length > 0 ? bookName : "TERMINATE");
-            clientSocket.Send(msg);
-            Console.WriteLine("Request send...");
+            SendMessage(MessageType.Hello, client_id);
+            Message message = ReceiveMessage();
+            if (message.Type == MessageType.Welcome)
+            {
+                //If client id is -1 and no book name has been given
+                if(client_id == "Client -1" && bookName.Length <= 0)
+                {
+                    //Request end of communications and shutdown of all applications
+                    SendMessage(MessageType.EndCommunication, "");
+                }
+                else
+                {
+                    //Request book from server
+                    SendMessage(MessageType.BookInquiry, bookName);
 
+                    message = ReceiveMessage();
+                    if (message.Type == MessageType.BookInquiryReply)
+                    {
+                        BookData book = JsonSerializer.Deserialize<BookData>(message.Content);
+                        if (book != null)
+                        {
+                            //Store status of the book
+                            result.Status = book.Status;
+
+                            //If status == borrowed then request user information
+                            if (result.Status == "Borrowed")
+                            {
+                                SendMessage(MessageType.UserInquiry, book.BorrowedBy);
+
+                                message = ReceiveMessage();
+                                if (message.Type == MessageType.UserInquiryReply)
+                                {
+                                    UserData user = JsonSerializer.Deserialize<UserData>(message.Content);
+                                    if (user != null)
+                                    {
+                                        //Store user info of the book
+                                        result.BorrowerName = user.Name;
+                                        result.BorrowerEmail = user.Email;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    else if (message.Type == MessageType.NotFound)
+                    {
+                        //If not found make sure the variables are null
+                        result.Status = null;
+                        result.BorrowerName = null;
+                        result.BorrowerEmail = null;
+                    }
+                }
+            }
+
+            //End of client
+            clientSocket.Close();
+            return result;
+        }
+
+        private void SendMessage(MessageType type, string text)
+        {
+            //send request
+            Message message = new Message();
+            message.Type = type;
+            message.Content = text;
+            string messageString = JsonSerializer.Serialize(message);
+
+            byte[] msg = Encoding.ASCII.GetBytes(messageString);
+            clientSocket.Send(msg);
+        }
+
+        private Message ReceiveMessage()
+        {
             //receive response
             byte[] incomingmsg = new byte[1000];
             int response = clientSocket.Receive(incomingmsg);
-            Console.WriteLine("\nResponse: " + Encoding.ASCII.GetString(incomingmsg, 0, response));
-            clientSocket.Close();
+            string responseJson = Encoding.ASCII.GetString(incomingmsg, 0, response);
 
-            //End of client
-            Console.WriteLine("Quiting client: " + client_id);
-            return result;
+            Message message = JsonSerializer.Deserialize<Message>(responseJson);
+            return message;
         }
     }
 }

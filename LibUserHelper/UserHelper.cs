@@ -28,12 +28,11 @@ namespace UserHelper
         public string authorFile = @"../../../Users.json"; // for debugging
         private Setting settings;
         private IPAddress ipAddress;
-        private List<UserData> authors = new List<UserData>();
+        private List<UserData> users = new List<UserData>();
 
         public SequentialHelper()
         {
             //todo: implement the body. Add extra fields and methods to the class if needed
-
             try
             {
                 //reading the json file
@@ -41,8 +40,8 @@ namespace UserHelper
                 this.settings = JsonSerializer.Deserialize<Setting>(configContent);
                 this.ipAddress = IPAddress.Parse(settings.UserHelperIPAddress);
 
-                string authorContent = File.ReadAllText(authorFile);
-                this.authors = JsonSerializer.Deserialize<List<UserData>>(authorContent);
+                string userContent = File.ReadAllText(authorFile);
+                this.users = JsonSerializer.Deserialize<List<UserData>>(userContent);
             }
             catch (Exception e)
             {
@@ -54,7 +53,6 @@ namespace UserHelper
         public void start()
         {
             //todo: implement the body. Add extra fields and methods to the class if needed
-
             Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
             IPEndPoint iPEndPoint = new IPEndPoint(ipAddress, settings.UserHelperPortNumber);
 
@@ -63,64 +61,75 @@ namespace UserHelper
                 //het wachten op een client voor een connectie
                 socket.Bind(iPEndPoint);
                 socket.Listen(settings.ServerListeningQueue);
-                Console.WriteLine("\n Connection started. Awaiting clients...");
 
-                // het opnemen van informatie dat de server binnne krijgt en uitprinten
                 while (true)
                 {
                     //Connect
                     Socket newsocket = socket.Accept();
 
-                    //Handle incoming client request
-                    string clientRequest = ClientRequestHandler(newsocket);
-                    Console.WriteLine("Client connected with message: " + clientRequest);
-
-                    //Find the correct book
-                    UserData author = FindAuthorByName(clientRequest);
-
-                    //Handle response to client
-                    string response = JsonSerializer.Serialize(author);
-                    ClientResponseHandler(newsocket, response);
-                    Console.WriteLine("returned response: " + response + "\n");
-
-                    //Check if connection should be terminated
-                    if (clientRequest.Length <= 0 || clientRequest == "TERMINATE")
+                    // het opnemen van informatie dat dr binnenkrijgt en uitprinten
+                    while (true)
                     {
-                        break;
+                        Message message = ReceiveMessage(newsocket);
+                        if (message.Type == MessageType.UserInquiry)
+                        {
+                            UserData user = FindUserById(message.Content);
+                            if (user == null)
+                            {
+                                SendMessage(newsocket, MessageType.NotFound, "");
+                            }
+                            else
+                            {
+                                SendMessage(newsocket, MessageType.UserInquiryReply, JsonSerializer.Serialize(user));
+                            }
+                        }
+                        else if (message.Type == MessageType.EndCommunication)
+                        {
+                            break;
+                        }
                     }
+                    newsocket.Close();
+                    break;
                 }
-
-                Console.WriteLine("\n Closing connection...");
-                socket.Close();
             }
             catch (Exception e)
             {
                 Console.WriteLine("\nAn error occured: " + e.Message + "\n" + e.StackTrace, ConsoleColor.Red);
             }
+
+            socket.Close();
         }
 
-        //Handle incoming request from the client
-        private string ClientRequestHandler(Socket socket)
+        private void SendMessage(Socket socket, MessageType type, string text)
         {
-            byte[] incomingmsgCLIENT = new byte[1000];
-            int b = socket.Receive(incomingmsgCLIENT);
-            return Encoding.ASCII.GetString(incomingmsgCLIENT, 0, b);
-        }
+            //send request
+            Message message = new Message();
+            message.Type = type;
+            message.Content = text;
+            string messageString = JsonSerializer.Serialize(message);
 
-        //Handle outgoing response to the client
-        private void ClientResponseHandler(Socket socket, string message)
-        {
-            byte[] msg = Encoding.ASCII.GetBytes(message);
+            byte[] msg = Encoding.ASCII.GetBytes(messageString);
             socket.Send(msg);
         }
 
-        private UserData FindAuthorByName(string name)
+        private Message ReceiveMessage(Socket socket)
         {
-            foreach (UserData author in authors)
+            //receive response
+            byte[] incomingmsg = new byte[1000];
+            int response = socket.Receive(incomingmsg);
+            string responseJson = Encoding.ASCII.GetString(incomingmsg, 0, response);
+
+            Message message = JsonSerializer.Deserialize<Message>(responseJson);
+            return message;
+        }
+
+        private UserData FindUserById(string id)
+        {
+            foreach (UserData user in users)
             {
-                if (author.Name == name)
+                if (user.User_id == id)
                 {
-                    return author;
+                    return user;
                 }
             }
             return null;
